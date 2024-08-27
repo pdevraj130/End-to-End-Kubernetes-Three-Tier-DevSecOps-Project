@@ -1,68 +1,55 @@
 properties([
     parameters([
-        string(defaultValue: 'variables.tfvars', description: 'Specify the file name', name: 'File-Name'),
-        choice(choices: ['apply', 'destroy'], description: 'Select Terraform action', name: 'Terraform-Action')
-    ])
+        string(
+            defaultValue: 'dev',
+            name: 'Environment'
+        ),
+        choice(
+            choices: ['plan', 'apply', 'destroy'], 
+            name: 'Terraform_Action'
+        )])
 ])
-
 pipeline {
     agent any
     stages {
-        stage('Checkout from Git') {
+        stage('Preparing') {
             steps {
-                git url: "https://github.com/pdevraj130/End-to-End-Kubernetes-Three-Tier-DevSecOps-Project.git" , branch:"master"
+                sh 'echo Preparing'
             }
         }
-        stage('Initializing Terraform') {
+        stage('Git Pulling') {
             steps {
-                withAWS(credentials: 'aws-key', region: 'us-east-1') {
-                dir('EKS-TF') {
-                    script {
-                        sh 'terraform init'
-                    }
-                }
-                }
+                git branch: 'master', url: 'https://github.com/AmanPathak-DevOps/EKS-Terraform-GitHub-Actions.git'
             }
         }
-        stage('Validate Terraform Code') {
+        stage('Init') {
             steps {
-                withAWS(credentials: 'aws-key', region: 'us-east-1') {
-                dir('EKS-TF') {
-                    script {
-                        sh 'terraform validate'
-                    }
-                }
+                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                sh 'terraform -chdir=eks/ init'
                 }
             }
         }
-        stage('Terraform Plan') {
+        stage('Validate') {
             steps {
-                withAWS(credentials: 'aws-key', region: 'us-east-1') {
-                dir('EKS-TF') {
-                    script {
-                        sh "terraform plan -var-file=${params.'File-Name'}"
-                    }
-                }
+                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                sh 'terraform -chdir=eks/ validate'
                 }
             }
         }
-        stage('Terraform Action') {
+        stage('Action') {
             steps {
-                withAWS(credentials: 'aws-key', region: 'us-east-1') { 
-                script {
-                    echo "${params.'Terraform-Action'}"
-                    dir('EKS-TF') {
-                        script {
-                            if (params.'Terraform-Action' == 'apply') {
-                                sh "terraform apply -auto-approve -var-file=${params.'File-Name'}"
-                            } else if (params.'Terraform-Action' == 'destroy') {
-                                sh "terraform destroy -auto-approve -var-file=${params.'File-Name'}"
-                            } else {
-                                error "Invalid value for Terraform-Action: ${params.'Terraform-Action'}"
-                            }
+                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                    script {    
+                        if (params.Terraform_Action == 'plan') {
+                            sh "terraform -chdir=eks/ plan -var-file=${params.Environment}.tfvars"
+                        }   else if (params.Terraform_Action == 'apply') {
+                            sh "terraform -chdir=eks/ apply -var-file=${params.Environment}.tfvars -auto-approve"
+                        }   else if (params.Terraform_Action == 'destroy') {
+                            sh "terraform -chdir=eks/ destroy -var-file=${params.Environment}.tfvars -auto-approve"
+                        } else {
+                            error "Invalid value for Terraform_Action: ${params.Terraform_Action}"
                         }
                     }
-                }
                 }
             }
         }

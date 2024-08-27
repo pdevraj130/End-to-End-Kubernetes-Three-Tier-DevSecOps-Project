@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout from Git') {
             steps {
-                git branch: 'master', url: 'https://github.com/pdevraj130/End-to-End-Kubernetes-Three-Tier-DevSecOps-Project.git'
+                git url: "https://github.com/pdevraj130/End-to-End-Kubernetes-Three-Tier-DevSecOps-Project.git" , branch:"master"
             }
         }
         stage('Initializing Terraform') {
